@@ -69,4 +69,9 @@ int main()
     auto list_of_lists = flist::of_range(std::ref(set_of_lists));
     auto seqN = flist::map([&](auto l) {return l(add, 0);}, flist::rev(std::ref(list_of_lists)));
     assert(seqN([](int i, int a) {assert(i == a); return a + 1;}, 0) == N);
+    
+    
+    auto lm = flist::create(1, 2, 3);
+    const int x = 2;
+    assert(flist::rev(lm)(add, std::move(x)) == 8);
 }

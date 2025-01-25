@@ -4,31 +4,38 @@
 #include <functional>
 #include <ranges>
 #include <sstream>
-#include <string>
-#include <utility>
+#include <type_traits>
 
 namespace flist {
-// Empy list
+// Empty list
 inline auto empty = [](auto, auto a) { return a; };
 
-// Add x at the beggining of l
+// Add [x] at the beggining of [l]
 inline auto cons = [](auto x, auto l) {
     return [=](auto f, auto a) { return f(x, l(f, a)); };
 };
 
 namespace detail {
+// Specialisation of create_help for base condition
 auto create_help(auto l) { return l; }
-
-template <typename... Args>
-auto create_help(auto l, auto element, Args... elements) {
-    return create_help(cons(element, l), std::forward<Args>(elements)...);
+// Helper function to add all elements to l
+auto create_help(auto l, auto element, auto... elements) {
+    return create_help(cons(element, l), elements...);
 }
+
+template <typename T>
+struct is_reference_wrapper : std::false_type {};
+
+template <typename T>
+struct is_reference_wrapper<std::reference_wrapper<T>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_reference_wrapper_v = is_reference_wrapper<T>::value;
 } // namespace detail
 
 // Reverse order of the list
 inline auto rev = [](auto l) {
     return [l](auto f, auto a) {
-        // using A = std::decay_t<decltype(a)>;
         using A = decltype(a);
 
         auto h = [&f](auto x, std::function<A(A)> inner) {
@@ -53,11 +60,16 @@ inline auto create = [](auto... elements) {
 inline auto of_range = [](auto range) {
     return [range](auto f, auto a) {
         using A = decltype(a);
-        using X = std::unwrap_reference_t<decltype(range)>;
-        decltype(auto) rr = X(range);
         A result = a;
-        for (auto el : rr | std::views::reverse) {
-            result = f(el, result);
+        if constexpr (detail::is_reference_wrapper_v<decltype(range)>) {
+            const auto &range_ref = range.get();
+            for (const auto &el : range_ref | std::views::reverse) {
+                result = f(el, result);
+            }
+        } else {
+            for (const auto &el : range | std::views::reverse) {
+                result = f(el, result);
+            }
         }
         return result;
     };
@@ -75,7 +87,7 @@ inline auto map = [](auto m, auto l) {
     };
 };
 
-// Filter [l] to [x] such that [p]([x])
+// Filter [l] to the list of [x] such that [p]([x])
 inline auto filter = [](auto p, auto l) {
     return [p, l](auto f, auto a) {
         return l([p, f](auto x, auto acc) { return p(x) ? f(x, acc) : acc; },
@@ -108,7 +120,6 @@ inline auto as_string = [](const auto &l) {
     oss << "]";
     return oss.str();
 };
-
 } // namespace flist
 
 #endif // FUNCLIST_H
