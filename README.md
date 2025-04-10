@@ -1,4 +1,5 @@
-## List container with functional programming in C++
+## List container header file
+List container written in functional programming paradigm in C++
 ## Compilation
 Compile using `clang++` (version `19.1.4`) with
 ```
